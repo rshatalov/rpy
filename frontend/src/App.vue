@@ -7,7 +7,7 @@ const count = ref(0);
 var message = ref("no message")
 
 function call() {
-    axios.get('http://localhost:8001/')
+    axios.get('http://localhost:8000/')
       .then(response => {
         console.log(response.data);
         message.value = response.data.message;

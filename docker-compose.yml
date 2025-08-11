@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONPATH=/app
+    volumes:
+      - ./backend:/app  # для разработки
+    networks:
+      - rpy-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+    networks:
+      - rpy-network
+    volumes:
+      - ./frontend:/app  # Монтируем код в контейнер
+      - /app/node_modules  # Исключаем node_modules
+
+networks:
+  rpy-network:
+    driver: bridge
