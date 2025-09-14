@@ -12,10 +12,12 @@ function increment() {
 </script>
 
 <template>
-    <div @click="increment">Increase</div>
+    <hr/>
+    <div>Timer</div>
+    <div @click="increment">Increase button</div>
     <div>{{ timer }}</div>
-    <div @click="timer--">Decrease</div>
-
+    <div @click="timer--">Decrease button</div>
+    <hr/>
 </template>
 
 <style scoped></style>

@@ -7,8 +7,11 @@ services:
       - "8000:8000"
     environment:
       - PYTHONPATH=/app
+      - DATABASE_URL=sqlite:////data/data.db
     volumes:
       - ./backend:/app  # для разработки
+      - ./data:/data
+    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
     networks:
       - rpy-network
 
