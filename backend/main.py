@@ -3,10 +3,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from database import get_db, Base, engine
-from models import TestItem
-from pydantic import BaseModel
-from datetime import datetime
-
+from models import TestItem, Act
+from pydantic import BaseModel, validator
+from datetime import date, datetime
+from typing import Optional
 
 app = FastAPI()
 
@@ -19,6 +19,32 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+class ActItemCreate(BaseModel):
+    title: str = ""
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    parent_id: Optional[int] = None
+
+    @validator('start_date', 'end_date', pre=True)
+    def parse_dates(cls, v):
+        if v == "" or v is None:
+            return None
+        return v
+    
+    @validator('parent_id', pre=True)
+    def parse_parent_id(cls, v):
+        if v == "" or v is None:
+            return None
+        return int(v)
+
+class ActItemResponse(BaseModel):
+    id: int
+    title: str
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    parent_id: Optional[int] = None
+
 
 class TestItemCreate(BaseModel):
     name: str
@@ -41,6 +67,27 @@ async def root():
 async def db_test(db: Session = Depends(get_db)):
     return {"message": "Database connected successfully"}
 
+
+@app.get("/acts/")
+async def get_acts(db: Session = Depends(get_db)):
+    acts = db.query(Act).all()
+    return acts
+
+@app.post("/acts/", response_model=ActItemResponse)
+async def create_ACT_item(act: ActItemCreate, db: Session = Depends(get_db)):
+    db_item = Act(title=act.title, start_date=act.start_date, end_date=act.end_date, parent_id=act.parent_id)
+    db.add(db_item)
+    db.commit()
+    db.refresh(db_item)
+    return db_item
+
+
+@app.get("/acts/{act_id}")
+async def get_act(act_id: int, db: Session = Depends(get_db)):
+    act = db.query(Act).filter(Act.id == act_id).first()
+    if act is None:
+        raise HTTPException(status_code=404, detail="Act not found")
+    return act
 
 @app.post("/test-items/", response_model=TestItemResponse)
 async def create_test_item(item: TestItemCreate, db: Session = Depends(get_db)):

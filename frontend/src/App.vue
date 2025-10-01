@@ -3,6 +3,7 @@
 import { ref } from 'vue';
 import axios from 'axios';
 import TestItemForm from './components/TestItemForm.vue';
+import ActForm from './components/ActForm.vue';
 
 const count = ref(0);
 var message = ref("no message")
@@ -32,6 +33,7 @@ function call() {
     <div @click="call">click</div>
   </div>
   <TestItemForm />
+  <ActForm />
   <hr/>
 </template>
 
