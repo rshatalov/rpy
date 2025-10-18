@@ -20,3 +20,10 @@ class Act(Base):
     end_date = Column(Date)
     parent_id = Column(Integer, ForeignKey('acts.id'), nullable=True)
     parent = relationship("Act", remote_side=[id], backref="children")
+
+
+class Tag(Base):
+    __tablename__ = 'tags'
+
+    slug = Column(String, primary_key=True, index=True)
+    title = Column(String, nullable=False)

@@ -3,8 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from database import get_db, Base, engine
-from models import TestItem, Act
-from pydantic import BaseModel, validator
+from models import TestItem, Act, Tag
+from pydantic import BaseModel, HttpUrl, validator
 from datetime import date, datetime
 from typing import Optional
 
@@ -46,6 +46,15 @@ class ActItemResponse(BaseModel):
     parent_id: Optional[int] = None
 
 
+
+class TagSchema(BaseModel):
+    slug: str
+    title: str
+    class Config:
+        from_attributes = True
+
+
+
 class TestItemCreate(BaseModel):
     name: str
     description: str = ""
@@ -74,7 +83,7 @@ async def get_acts(db: Session = Depends(get_db)):
     return acts
 
 @app.post("/acts/", response_model=ActItemResponse)
-async def create_ACT_item(act: ActItemCreate, db: Session = Depends(get_db)):
+async def create_act_item(act: ActItemCreate, db: Session = Depends(get_db)):
     db_item = Act(title=act.title, start_date=act.start_date, end_date=act.end_date, parent_id=act.parent_id)
     db.add(db_item)
     db.commit()
@@ -88,6 +97,51 @@ async def get_act(act_id: int, db: Session = Depends(get_db)):
     if act is None:
         raise HTTPException(status_code=404, detail="Act not found")
     return act
+
+
+
+
+
+@app.get('/api/v1/tags/', response_model=list[TagSchema])
+async def get_tags(db: Session = Depends(get_db)):
+    tags = db.query(Tag).all()
+    return tags
+
+@app.get('/api/v1/tags/{tag_slug}', response_model=TagSchema)
+async def get_tag(tag_slug: str, db: Session = Depends(get_db)):
+    tag = db.query(Tag).filter(Tag.slug == tag_slug).first()
+    if tag is None:
+        raise HTTPException(status_code=404, detail='Tag not found')
+    return tag
+
+@app.post('/api/v1/tags/', response_model=TagSchema)
+async def crate_tag(tag: TagSchema, db: Session = Depends(get_db)):
+    existing_tag = db.query(Tag).filter(Tag.slug == tag.slug).first()
+    if existing_tag:
+        raise HTTPException(status_code=400, detail='Такой тэг уже существует')
+
+    db_item = Tag(slug=tag.slug, title=tag.title)
+    db.add(db_item)
+    db.commit()
+    db.refresh(db_item)
+    return db_item
+
+
+@app.delete("/api/v1/tags/{tag_slug}")
+async def delete_tag(tag_slug: str, db: Session = Depends(get_db)):
+    db_tag = db.query(Tag).filter(Tag.slug == tag_slug).first()
+    if db_tag is None:
+        return HTTPException(status_code=404, detail='Такого тэга нет')
+
+    db.delete(db_tag)
+    db.commit()
+    return {'message': 'Тэг успешно удалён'}
+
+
+
+
+
+
 
 @app.post("/test-items/", response_model=TestItemResponse)
 async def create_test_item(item: TestItemCreate, db: Session = Depends(get_db)):
