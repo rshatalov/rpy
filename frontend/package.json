@@ -12,7 +12,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@vueuse/integrations": "^13.9.0",
     "axios": "^1.11.0",
+    "highlight.js": "^11.11.1",
+    "marked": "^16.4.1",
     "vue": "^3.5.18",
     "vue-router": "^4.6.3"
   },
