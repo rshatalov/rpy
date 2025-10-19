@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import text
 from database import get_db, Base, engine
 from models import TestItem, Act, Tag
-from pydantic import BaseModel, HttpUrl, validator
+from pydantic import BaseModel, HttpUrl, field_validator
 from datetime import date, datetime
 from typing import Optional
 
@@ -26,13 +26,15 @@ class ActItemCreate(BaseModel):
     end_date: Optional[date] = None
     parent_id: Optional[int] = None
 
-    @validator('start_date', 'end_date', pre=True)
+    @field_validator('start_date', 'end_date')
+    @classmethod
     def parse_dates(cls, v):
         if v == "" or v is None:
             return None
         return v
     
-    @validator('parent_id', pre=True)
+    @field_validator('parent_id')
+    @classmethod
     def parse_parent_id(cls, v):
         if v == "" or v is None:
             return None

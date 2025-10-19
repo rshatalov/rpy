@@ -4,6 +4,8 @@ import { ref } from 'vue';
 import axios from 'axios';
 import TestItemForm from './components/TestItemForm.vue';
 import ActForm from './components/ActForm.vue';
+import TagForm from './components/TagForm.vue';  // Добавляем импорт
+
 
 const count = ref(0);
 var message = ref("no message")
@@ -35,6 +37,8 @@ function call() {
   <TestItemForm />
   <ActForm />
   <hr/>
+  <TagForm />  <!-- Добавляем компонент тэгов -->
+
 </template>
 
 <style scoped></style>
