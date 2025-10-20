@@ -8,12 +8,14 @@ import Dashboard from './pages/Dashboard.vue'
 import Tags from './pages/Tags.vue'
 import TestMarked from './pages/TestMarked.vue'
 import TestHighlight from './pages/TestHighlight.vue'
+import Questions from '@/pages/Questions.vue'
 
 const routes = [
     { path: '/', component: Dashboard },
     { path: '/tags', component: Tags },
     { path: '/test-marked', component: TestMarked },
     { path: '/test-highlight', component: TestHighlight },
+    { path: '/questions', component: Questions },
   ]
 
 const router = createRouter({
@@ -24,6 +26,3 @@ const router = createRouter({
 const app = createApp(App)
 app.use(router)
 app.mount('#app')
-
-createApp(Timer).mount('#timer')
-createApp(DBTest).mount('#dbtest')

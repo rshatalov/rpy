@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from database import get_db, Base, engine
-from models import TestItem, Act, Tag
+from models import TestItem, Act, Tag, Question
 from pydantic import BaseModel, HttpUrl, field_validator
 from datetime import date, datetime
 from typing import Optional
