@@ -6,7 +6,8 @@ from database import get_db, Base, engine
 from models import TestItem, Act, Tag, Question
 from pydantic import BaseModel, HttpUrl, field_validator
 from datetime import date, datetime
-from typing import Optional
+from typing import Optional, List
+
 
 app = FastAPI()
 
@@ -68,6 +69,20 @@ class TestItemResponse(BaseModel):
     created_at: datetime
 
 
+class QuestionCreate(BaseModel):
+    q: str
+    a: str
+    difficulty: Optional[str] = None
+    tag_slugs: List[str] = []  # Список slug'ов тегов
+
+class QuestionResponse(BaseModel):
+    id: int
+    q: str
+    a: str
+    difficulty: Optional[str] = None
+    tags: List[TagSchema] = []
+    class Config:
+        from_attributes = True
 
 @app.get("/")
 async def root():
@@ -141,6 +156,46 @@ async def delete_tag(tag_slug: str, db: Session = Depends(get_db)):
 
 
 
+@app.post("/api/v1/questions/", response_model=QuestionResponse)
+async def create_question(question: QuestionCreate, db: Session = Depends(get_db)):
+    print(question)
+    # Создаем вопрос
+    db_question = Question(
+        q=question.q,
+        a=question.a,
+        difficulty=question.difficulty
+    )
+    db.add(db_question)
+    print("Выполняем flush...")
+    db.flush()  # Получаем ID
+    print(f"ID вопроса: {db_question.id}")
+    
+    # Добавляем теги
+    if question.tag_slugs:
+        print(f"Обрабатываем теги: {question.tag_slugs}")
+        for tag_slug in question.tag_slugs:
+            print(f"Ищем тег: {tag_slug}")
+            tag = db.query(Tag).filter(Tag.slug == tag_slug).first()
+            if tag:
+                print(f"Найден тег: {tag.slug} - {tag.title}")
+                print(f"Добавляем тег к вопросу...")
+                db_question.tags.append(tag)
+                print(f"Тег добавлен. Текущие теги: {[t.slug for t in db_question.tags]}")
+    
+    print("Коммитим изменения...")
+    db.commit()
+    print("Коммит успешен")
+    
+    print("Обновляем объект...")
+    db.refresh(db_question)
+    print(f"Объект обновлен: {db_question}")
+    print(db_question.__dict__)
+    return db_question
+
+
+
+
+
 
 
 
@@ -168,6 +223,7 @@ async def get_test_item(item_id: int, db: Session = Depends(get_db)):
     return item
 
 
+
 @app.get("/db/inspect")
 async def inspect_db(db: Session = Depends(get_db)):
     # Показать все таблицы
@@ -191,3 +247,4 @@ async def get_id(id: str):
 @app.get("/activities/{slug:str}/")
 async def activity(slug: str):
     return {"slug": slug}
+
