@@ -156,44 +156,82 @@ async def delete_tag(tag_slug: str, db: Session = Depends(get_db)):
 
 
 
+@app.get('/api/v1/questions/', response_model=list[QuestionResponse])
+async def get_questions(db: Session = Depends(get_db)):
+    qs = db.query(Question).all()
+    return qs
+
 @app.post("/api/v1/questions/", response_model=QuestionResponse)
 async def create_question(question: QuestionCreate, db: Session = Depends(get_db)):
-    print(question)
-    # Создаем вопрос
     db_question = Question(
         q=question.q,
         a=question.a,
         difficulty=question.difficulty
     )
     db.add(db_question)
-    print("Выполняем flush...")
     db.flush()  # Получаем ID
-    print(f"ID вопроса: {db_question.id}")
-    
-    # Добавляем теги
+
     if question.tag_slugs:
-        print(f"Обрабатываем теги: {question.tag_slugs}")
         for tag_slug in question.tag_slugs:
-            print(f"Ищем тег: {tag_slug}")
             tag = db.query(Tag).filter(Tag.slug == tag_slug).first()
             if tag:
-                print(f"Найден тег: {tag.slug} - {tag.title}")
-                print(f"Добавляем тег к вопросу...")
                 db_question.tags.append(tag)
-                print(f"Тег добавлен. Текущие теги: {[t.slug for t in db_question.tags]}")
-    
-    print("Коммитим изменения...")
+
     db.commit()
-    print("Коммит успешен")
-    
-    print("Обновляем объект...")
     db.refresh(db_question)
-    print(f"Объект обновлен: {db_question}")
-    print(db_question.__dict__)
     return db_question
 
 
 
+@app.put("/api/v1/questions/{question_id}", response_model=QuestionResponse)
+async def update_question(question_id: int, question: QuestionCreate, db: Session = Depends(get_db)):
+    try:
+        # Находим вопрос
+        db_question = db.query(Question).filter(Question.id == question_id).first()
+        if not db_question:
+            raise HTTPException(status_code=404, detail="Question not found")
+        
+        # Обновляем поля
+        db_question.q = question.q
+        db_question.a = question.a
+        db_question.difficulty = question.difficulty
+        
+        # Очищаем старые теги
+        db_question.tags.clear()
+        
+        # Добавляем новые теги
+        if question.tag_slugs:
+            for tag_slug in question.tag_slugs:
+                tag = db.query(Tag).filter(Tag.slug == tag_slug).first()
+                if tag:
+                    db_question.tags.append(tag)
+        
+        db.commit()
+        db.refresh(db_question)
+        
+        return {
+            "id": db_question.id,
+            "q": db_question.q,
+            "a": db_question.a,
+            "difficulty": db_question.difficulty,
+            "tags": [{"slug": tag.slug, "title": tag.title} for tag in db_question.tags]
+        }
+        
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Ошибка обновления вопроса: {str(e)}")
+
+
+
+@app.delete("/api/v1/questions/{id}")
+async def delete_question(id: int, db: Session = Depends(get_db)):
+    q = db.query(Question).filter(Question.id == id).first()
+    if q is None:
+        return HTTPException(status_code=404, detail='Такого вопроса нет')
+
+    db.delete(q)
+    db.commit()
+    return {'message': 'Вопрос успешно удалён'}
 
 
 
