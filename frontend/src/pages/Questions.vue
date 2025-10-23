@@ -7,17 +7,80 @@
       @saved="handleQuestionSaved"
     />
       <hr/>
+
+      <!-- Фильтры по тегам -->
+      <div class="filters-section">
+        <h2>Фильтры по тегам</h2>
+        
+        <!-- Включающие фильтры -->
+        <div class="filter-group">
+          <h3>Показать вопросы с тегами:</h3>
+          <div class="tags-filter">
+            <div v-for="tag in availableTags" :key="tag.slug" class="tag-filter-item">
+              <input 
+                type="checkbox" 
+                :id="`include-${tag.slug}`"
+                :value="tag.slug"
+                v-model="includeTags"
+              >
+              <label :for="`include-${tag.slug}`" class="tag-label include">
+                {{ tag.title }}
+              </label>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Исключающие фильтры -->
+        <div class="filter-group">
+          <h3>Исключить вопросы с тегами:</h3>
+          <div class="tags-filter">
+            <div v-for="tag in availableTags" :key="tag.slug" class="tag-filter-item">
+              <input 
+                type="checkbox" 
+                :id="`exclude-${tag.slug}`"
+                :value="tag.slug"
+                v-model="excludeTags"
+              >
+              <label :for="`exclude-${tag.slug}`" class="tag-label exclude">
+                {{ tag.title }}
+              </label>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Кнопки управления фильтрами -->
+        <div class="filter-controls">
+          <div class="filter-buttons">
+            <button @click="clearFilters" class="clear-filters-btn">
+              Очистить фильтры
+            </button>
+            <button @click="toggleRandomSort" class="random-sort-btn" :class="{ active: isRandomSort }">
+              {{ isRandomSort ? 'Отключить случайную сортировку' : 'Случайная сортировка' }}
+            </button>
+          </div>
+          <span class="filter-info">
+            Показано: {{ filteredQuestions.length }} из {{ questions.length }} вопросов
+          </span>
+        </div>
+      </div>
+
+      <hr/>
   
       <!-- Список вопросов -->
       <div class="questions-list">
         <h2>Список вопросов</h2>
         
-        <div v-if="questions.length === 0" class="no-questions">
-          Вопросов пока нет
+        <div v-if="filteredQuestions.length === 0" class="no-questions">
+          <div v-if="questions.length === 0">
+            Вопросов пока нет
+          </div>
+          <div v-else>
+            Нет вопросов, соответствующих фильтрам
+          </div>
         </div>
         
         <div v-else>
-          <div v-for="question in questions" :key="question.id" class="question-item">
+          <div v-for="question in filteredQuestions" :key="question.id" class="question-item">
             <div class="question-header">
                 <div class="question-tags" v-if="question.tags && question.tags.length > 0">
                 <span v-for="tag in question.tags" :key="tag.slug" class="tag">
@@ -73,7 +136,7 @@
 
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import axios from 'axios'
 import { marked } from 'marked'
 import hljs from 'highlight.js'
@@ -101,10 +164,90 @@ const availableTags = ref([])
 const questions = ref([])
 const editingQuestion = ref(null)
 
+// Фильтры
+const includeTags = ref([])
+const excludeTags = ref([])
+
+// Случайная сортировка
+const isRandomSort = ref(false)
+const randomOrder = ref([])
+
 
 const renderMarkdown = (text) => {
   if (!text) return ''
   return marked(text)
+}
+
+// Вычисляемое свойство для фильтрации и сортировки вопросов
+const filteredQuestions = computed(() => {
+  let filtered = questions.value
+  
+  // Применяем фильтры по тегам
+  if (includeTags.value.length > 0 || excludeTags.value.length > 0) {
+    filtered = questions.value.filter(question => {
+      const questionTagSlugs = question.tags ? question.tags.map(tag => tag.slug) : []
+      
+      // Проверяем включающие фильтры
+      if (includeTags.value.length > 0) {
+        const hasIncludeTag = includeTags.value.some(tagSlug => 
+          questionTagSlugs.includes(tagSlug)
+        )
+        if (!hasIncludeTag) return false
+      }
+      
+      // Проверяем исключающие фильтры
+      if (excludeTags.value.length > 0) {
+        const hasExcludeTag = excludeTags.value.some(tagSlug => 
+          questionTagSlugs.includes(tagSlug)
+        )
+        if (hasExcludeTag) return false
+      }
+      
+      return true
+    })
+  }
+  
+  // Применяем случайную сортировку
+  if (isRandomSort.value && randomOrder.value.length > 0) {
+    // Сортируем отфильтрованные вопросы согласно случайному порядку
+    const questionMap = new Map(filtered.map(q => [q.id, q]))
+    return randomOrder.value
+      .map(id => questionMap.get(id))
+      .filter(Boolean) // Убираем undefined (вопросы, которые не прошли фильтр)
+  }
+  
+  return filtered
+})
+
+// Функции для управления фильтрами
+const clearFilters = () => {
+  includeTags.value = []
+  excludeTags.value = []
+}
+
+// Функция для переключения случайной сортировки
+const toggleRandomSort = () => {
+  if (isRandomSort.value) {
+    // Отключаем случайную сортировку
+    isRandomSort.value = false
+    randomOrder.value = []
+  } else {
+    // Включаем случайную сортировку
+    isRandomSort.value = true
+    generateRandomOrder()
+  }
+}
+
+// Генерация случайного порядка
+const generateRandomOrder = () => {
+  const allQuestionIds = questions.value.map(q => q.id)
+  // Алгоритм Fisher-Yates для перемешивания
+  const shuffled = [...allQuestionIds]
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+  }
+  randomOrder.value = shuffled
 }
 
 
@@ -178,6 +321,126 @@ onMounted(() => {
   max-width: 800px;
   margin: 0 auto;
   padding: 20px;
+}
+
+/* Стили для фильтров */
+.filters-section {
+  background: #f8f9fa;
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.filter-group {
+  margin-bottom: 20px;
+}
+
+.filter-group h3 {
+  margin: 0 0 10px 0;
+  font-size: 16px;
+  color: #495057;
+}
+
+.tags-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tag-filter-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.tag-filter-item input[type="checkbox"] {
+  margin: 0;
+}
+
+.tag-label {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1px solid transparent;
+}
+
+.tag-label.include {
+  background: #d4edda;
+  color: #155724;
+  border-color: #c3e6cb;
+}
+
+.tag-label.include:hover {
+  background: #c3e6cb;
+}
+
+.tag-label.exclude {
+  background: #f8d7da;
+  color: #721c24;
+  border-color: #f5c6cb;
+}
+
+.tag-label.exclude:hover {
+  background: #f5c6cb;
+}
+
+.filter-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid #dee2e6;
+}
+
+.filter-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.clear-filters-btn {
+  background: #6c757d;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: background 0.2s;
+}
+
+.clear-filters-btn:hover {
+  background: #545b62;
+}
+
+.random-sort-btn {
+  background: #17a2b8;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.2s;
+}
+
+.random-sort-btn:hover {
+  background: #138496;
+}
+
+.random-sort-btn.active {
+  background: #dc3545;
+}
+
+.random-sort-btn.active:hover {
+  background: #c82333;
+}
+
+.filter-info {
+  font-size: 12px;
+  color: #6c757d;
 }
 
 .question-item {
