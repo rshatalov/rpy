@@ -6,6 +6,7 @@
         <li><router-link to="/test-marked" class="nav-link">marked</router-link></li>
         <li><router-link to="/test-highlight" class="nav-link">highlight.js</router-link></li>
         <li><router-link to="/questions" class="nav-link">Вопросы</router-link></li>
+        <li><router-link to="/study" class="nav-link">Учебная сессия</router-link></li>
       </ul>
     </nav>
   </template>

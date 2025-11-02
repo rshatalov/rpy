@@ -9,6 +9,7 @@ import Tags from './pages/Tags.vue'
 import TestMarked from './pages/TestMarked.vue'
 import TestHighlight from './pages/TestHighlight.vue'
 import Questions from '@/pages/Questions.vue'
+import StudySession from './pages/StudySession.vue'
 
 const routes = [
     { path: '/', component: Dashboard },
@@ -16,6 +17,7 @@ const routes = [
     { path: '/test-marked', component: TestMarked },
     { path: '/test-highlight', component: TestHighlight },
     { path: '/questions', component: Questions },
+    { path: '/study', component: StudySession },
   ]
 
 const router = createRouter({

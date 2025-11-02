@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from database import get_db, Base, engine
-from models import TestItem, Act, Tag, Question
+from models import TestItem, Act, Tag, Question, StudySession, SessionQuestion
 from pydantic import BaseModel, HttpUrl, field_validator
 from datetime import date, datetime
 from typing import Optional, List
@@ -83,6 +83,37 @@ class QuestionResponse(BaseModel):
     tags: List[TagSchema] = []
     class Config:
         from_attributes = True
+
+# Модели для учебных сессий
+class StudySessionCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
+
+class StudySessionResponse(BaseModel):
+    id: int
+    name: str
+    description: Optional[str] = None
+    start_date: datetime
+    end_date: Optional[datetime] = None
+    is_active: bool
+    created_at: datetime
+    class Config:
+        from_attributes = True
+
+class SessionQuestionResponse(BaseModel):
+    id: int
+    question_id: int
+    times_shown: int
+    last_shown: Optional[datetime] = None
+    status: str
+    question: QuestionResponse
+    class Config:
+        from_attributes = True
+
+class QuestionRating(BaseModel):
+    session_id: int
+    question_id: int
+    rating: str  # easy, medium, hard
 
 @app.get("/")
 async def root():
@@ -285,4 +316,163 @@ async def get_id(id: str):
 @app.get("/activities/{slug:str}/")
 async def activity(slug: str):
     return {"slug": slug}
+
+# API для учебных сессий
+@app.post("/api/v1/study-sessions/", response_model=StudySessionResponse)
+async def create_study_session(session: StudySessionCreate, db: Session = Depends(get_db)):
+    """Создать новую учебную сессию"""
+    db_session = StudySession(
+        name=session.name,
+        description=session.description
+    )
+    db.add(db_session)
+    db.commit()
+    db.refresh(db_session)
+    return db_session
+
+@app.get("/api/v1/study-sessions/", response_model=List[StudySessionResponse])
+async def get_study_sessions(db: Session = Depends(get_db)):
+    """Получить все учебные сессии"""
+    sessions = db.query(StudySession).all()
+    return sessions
+
+@app.get("/api/v1/study-sessions/{session_id}", response_model=StudySessionResponse)
+async def get_study_session(session_id: int, db: Session = Depends(get_db)):
+    """Получить учебную сессию по ID"""
+    session = db.query(StudySession).filter(StudySession.id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Study session not found")
+    return session
+
+@app.delete("/api/v1/study-sessions/{session_id}")
+async def delete_study_session(session_id: int, db: Session = Depends(get_db)):
+    """Удалить учебную сессию"""
+    session = db.query(StudySession).filter(StudySession.id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Study session not found")
+    db.query(SessionQuestion).filter(SessionQuestion.session_id == session_id).delete()
+    db.commit()
+    db.delete(session)
+    db.commit()
+    return {"message": "Study session deleted"}
+
+
+@app.post("/api/v1/study-sessions/{session_id}/end")
+async def end_study_session(session_id: int, db: Session = Depends(get_db)):
+    """Завершить учебную сессию"""
+    session = db.query(StudySession).filter(StudySession.id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Study session not found")
+    
+    session.end_date = datetime.now()
+    session.is_active = False
+    db.commit()
+    return {"message": "Study session ended"}
+
+@app.get("/api/v1/study-sessions/{session_id}/next-question")
+async def get_next_question(session_id: int, db: Session = Depends(get_db)):
+    """Получить следующий вопрос для сессии"""
+    session = db.query(StudySession).filter(StudySession.id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Study session not found")
+    
+    # Находим вопросы, которые еще не были показаны или показаны мало раз
+    # Исключаем только те вопросы, которые помечены как "easy" (легкие)
+    easy_question_ids = db.query(SessionQuestion.question_id).filter(
+        SessionQuestion.session_id == session_id,
+        SessionQuestion.status == 'easy'
+    ).subquery()
+    
+    available_questions = db.query(Question).filter(
+        ~Question.id.in_(easy_question_ids)
+    ).all()
+    
+    if not available_questions:
+        return {"message": "No more questions available"}
+    
+    # Выбираем случайный вопрос
+    import random
+    selected_question = random.choice(available_questions)
+    
+    # Добавляем или обновляем запись в сессии
+    session_question = db.query(SessionQuestion).filter(
+        SessionQuestion.session_id == session_id,
+        SessionQuestion.question_id == selected_question.id
+    ).first()
+    
+    if not session_question:
+        session_question = SessionQuestion(
+            session_id=session_id,
+            question_id=selected_question.id,
+            times_shown=1,
+            last_shown=datetime.now()
+        )
+        db.add(session_question)
+    else:
+        session_question.times_shown += 1
+        session_question.last_shown = datetime.now()
+    
+    db.commit()
+    db.refresh(session_question)
+    
+    # Преобразуем вопрос в словарь для правильной сериализации
+    question_data = {
+        "id": selected_question.id,
+        "q": selected_question.q,
+        "a": selected_question.a,
+        "difficulty": selected_question.difficulty,
+        "tags": [{"slug": tag.slug, "title": tag.title} for tag in selected_question.tags]
+    }
+    
+    return {
+        "question": question_data,
+        "session_question_id": session_question.id,
+        "times_shown": session_question.times_shown
+    }
+
+@app.post("/api/v1/study-sessions/{session_id}/rate-question")
+async def rate_question(session_id: int, rating: QuestionRating, db: Session = Depends(get_db)):
+    """Оценить вопрос в сессии"""
+    session_question = db.query(SessionQuestion).filter(
+        SessionQuestion.session_id == session_id,
+        SessionQuestion.question_id == rating.question_id
+    ).first()
+    
+    if not session_question:
+        raise HTTPException(status_code=404, detail="Question not found in session")
+    
+    session_question.status = rating.rating
+    db.commit()
+    
+    return {"message": f"Question rated as {rating.rating}"}
+
+@app.get("/api/v1/study-sessions/{session_id}/statistics")
+async def get_session_statistics(session_id: int, db: Session = Depends(get_db)):
+    """Получить статистику сессии"""
+    session = db.query(StudySession).filter(StudySession.id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Study session not found")
+    
+    session_questions = db.query(SessionQuestion).filter(
+        SessionQuestion.session_id == session_id
+    ).all()
+    
+    total_questions = len(session_questions)
+    easy_questions = len([sq for sq in session_questions if sq.status == 'easy'])
+    medium_questions = len([sq for sq in session_questions if sq.status == 'medium'])
+    hard_questions = len([sq for sq in session_questions if sq.status == 'hard'])
+    pending_questions = len([sq for sq in session_questions if sq.status == 'pending'])
+    
+    total_shows = sum(sq.times_shown for sq in session_questions)
+    
+    return {
+        "session": session,
+        "total_questions": total_questions,
+        "easy_questions": easy_questions,
+        "medium_questions": medium_questions,
+        "hard_questions": hard_questions,
+        "pending_questions": pending_questions,
+        "total_shows": total_shows,
+        "average_shows": total_shows / total_questions if total_questions > 0 else 0
+    }
 

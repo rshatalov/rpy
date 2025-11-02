@@ -21,5 +21,12 @@ export default defineConfig({
     watch: {
       usePolling: true,  // Важно для Docker на Windows!
     },
+    proxy: {
+      '/api': {
+        target: 'http://backend:8000',
+        changeOrigin: true,
+        secure: false,
+      }
+    }
   },
 })
