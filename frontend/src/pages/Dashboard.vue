@@ -12,7 +12,6 @@
         </div>
     </div>
     <TestItemForm />
-    <ActForm />
 </template>
 
 <script setup>

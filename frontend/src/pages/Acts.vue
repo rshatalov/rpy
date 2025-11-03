@@ -132,6 +132,9 @@
   
   const formatDate = (dateStr) => {
     if (!dateStr) return ''
+    console.log(dateStr)
+    const d = new Date(dateStr)
+    //console.log(d)
     return new Date(dateStr).toLocaleDateString('ru-RU', {
         day: '2-digit',
         month: '2-digit',

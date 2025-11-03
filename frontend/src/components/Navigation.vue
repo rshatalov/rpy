@@ -3,9 +3,11 @@
       <ul>
         <li><router-link to="/" class="nav-link">Главная</router-link></li>
         <li><router-link to="/acts" class="nav-link">Активности</router-link></li>
+        <li><router-link to="/plans" class="nav-link">Планы</router-link></li>
+    <li><router-link to="/tasks" class="nav-link">Задачи</router-link></li>
+    <li><router-link to="/plan-notes" class="nav-link">Заметки планов</router-link></li>
+    <li><router-link to="/act-notes" class="nav-link">Заметки активностей</router-link></li>
         <li><router-link to="/tags" class="nav-link">Тэги</router-link></li>
-        <li><router-link to="/test-marked" class="nav-link">marked</router-link></li>
-        <li><router-link to="/test-highlight" class="nav-link">highlight.js</router-link></li>
         <li><router-link to="/questions" class="nav-link">Вопросы</router-link></li>
         <li><router-link to="/study" class="nav-link">Учебная сессия</router-link></li>
       </ul>
