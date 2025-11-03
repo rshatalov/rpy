@@ -2,6 +2,7 @@
     <nav class="navigation">
       <ul>
         <li><router-link to="/" class="nav-link">Главная</router-link></li>
+        <li><router-link to="/acts" class="nav-link">Активности</router-link></li>
         <li><router-link to="/tags" class="nav-link">Тэги</router-link></li>
         <li><router-link to="/test-marked" class="nav-link">marked</router-link></li>
         <li><router-link to="/test-highlight" class="nav-link">highlight.js</router-link></li>

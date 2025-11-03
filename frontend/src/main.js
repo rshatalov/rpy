@@ -10,9 +10,11 @@ import TestMarked from './pages/TestMarked.vue'
 import TestHighlight from './pages/TestHighlight.vue'
 import Questions from '@/pages/Questions.vue'
 import StudySession from './pages/StudySession.vue'
+import Acts from './pages/Acts.vue'
 
 const routes = [
     { path: '/', component: Dashboard },
+    { path: '/acts', component: Acts },
     { path: '/tags', component: Tags },
     { path: '/test-marked', component: TestMarked },
     { path: '/test-highlight', component: TestHighlight },
